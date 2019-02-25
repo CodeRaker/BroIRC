@@ -9,8 +9,7 @@ class BroIRC():
     def __init__(self):
         self.ircServer = "chat.freenode.net"
         self.ircPort = 6697
-        #self.channels = ["#protozoa","#protozoa","#offsec","#metasploit","#vulnhub","#infoseclabs","#psempire","##security"]
-        self.channels = ["#protozoa"]
+        self.channels = ["#python"]
         self.hiddenChannels = []
         self.nickname = ""
         self.password = ""
