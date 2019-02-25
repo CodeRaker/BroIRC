@@ -19,13 +19,14 @@ class BroIRC():
         self.identified = False
         self.listNames = False
         self.selectedChannel = ""
+        self.promptActive = False
         self.help = '''
 These are your commands:
 !bro help                    show help
 !bro rawmode <on/off>        enable/disable rawmode
 !bro clear                   clear the screen
-!bro unhide <channel>        show channel messages
-!bro hide <channel>          hide channel messages
+!bro unmute <channel>        show channel messages
+!bro mute <channel>          mute channel messages
 !bro list channels           list all channels
 !bro select <channel>        selects a channel for chat
 !bro list users <channel>    shows users in a channel
@@ -52,6 +53,7 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
         t1 = threading.Thread(target=self.ircCommRecv)
         t1.daemon = True
         t1.start()
+        self.promptActive = True
 
     def questions(self):
         print("All commands start with !bro. To see available commands type: !bro help")
@@ -88,9 +90,9 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
                 else:
                     print(str(counter)+". "+channel)
 
-        elif command.startswith("!bro hide "):
+        elif command.startswith("!bro mute "):
             try:
-                channelToHide = command.split("!bro hide ")[1]
+                channelToHide = command.split("!bro mute ")[1]
                 if channelToHide in self.channels:
                     if channelToHide not in self.hiddenChannels:
                         self.hiddenChannels.append(channelToHide)
@@ -100,9 +102,9 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
             except Exception as e:
                 print("Error: "+str(e))
 
-        elif command.startswith("!bro unhide "):
+        elif command.startswith("!bro unmute "):
             try:
-                channelToUnhide = command.split("!bro unhide ")[1]
+                channelToUnhide = command.split("!bro unmute ")[1]
                 if channelToUnhide in self.channels:
                     if channelToUnhide in self.hiddenChannels:
                         self.hiddenChannels.remove(channelToUnhide)
@@ -208,6 +210,9 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
                     fromChannel = data.split()[0]
                     messageContent = data.split(fromChannel+" :")[1]
                     if fromChannel not in self.hiddenChannels:
+                        if self.promptActive:
+                            print("")
+                            self.promptActive = False
                         print("["+fromChannel.lstrip("#")+"@"+fromUser+"] "+messageContent.strip("\r\n"))
 
                 elif data.startswith(self.ping):
@@ -216,11 +221,17 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
 
                 elif self.listNames:
                     if " 353 "+self.nickname in data:
+                        if self.promptActive:
+                            print("")
+                            self.promptActive = False
                         print(data.rstrip("\n\r"))
                         self.listNames = False
 
                 else:
                     if self.rawmode:
+                        if self.promptActive:
+                            print("")
+                            self.promptActive = False
                         print(data.rstrip("\n\r"))
             except KeyboardInterrupt:
                 pass
@@ -231,6 +242,7 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
         while True:
             try:
                 message = input("["+self.nickname+"@"+self.selectedChannel.lstrip("#")+"] ")
+                self.promptActive = True
                 if message.startswith("!bro"):
                     self.bro(message)
                 else:
