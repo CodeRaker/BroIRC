@@ -4,21 +4,24 @@ import threading
 import time
 import os
 import sys
+from settings import *
 
 class BroIRC():
     def __init__(self):
-        self.ircServer = "chat.freenode.net"
-        self.ircPort = 6697
-        self.channels = ["#python"]
-        self.hiddenChannels = []
-        self.nickname = ""
-        self.password = ""
+        self.ircServer = ircServer
+        self.ircPort = ircPort
+        self.channels = ircChannels
+        self.channelsMuted = []
+        self.channelSelected = ""
+        self.nickname = nickname
+        self.password = password
         self.ping = "PING "
         self.pong = "PONG "
         self.identified = False
         self.listNames = False
-        self.selectedChannel = ""
         self.promptActive = False
+        self.dMethods = {"toggle-rawmode":self.toggleRawmode, "help":self.showHelp, "clear":self.clearScreen, "list-channels":self.listChannels, "mute-channels":self.muteChannels, "unmute-channels":self.unmuteChannels, "select-channel":self.selectChannel, "status":self.showStatus, "list-users":self.listUsers}
+        self.dMethodsRequiringData = ["mute-channels","unmute-channels","select-channel","list-users"]
         self.help = '''
 These are your commands:
 !bro help                    show help
@@ -64,103 +67,71 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
             print("[+] Continuing in Normal Mode")
             self.rawmode = False
 
-    def bro(self, command):
-        if command == "!bro rawmode on":
-            print("[+] Enabling Raw Mode")
-            self.rawmode = True
-
-        elif command == "!bro rawmode off":
-            print("[+] Disabling Raw Mode")
-            self.rawmode = False
-
-        elif command == "!bro help":
-            print(self.help)
-
-        elif command == "!bro clear":
-            os.system("clear")
-
-        elif command == "!bro list channels":
-            print("[+] Listing channels")
-            counter = 0
-            for channel in self.channels:
-                counter += 1
-                if channel in self.hiddenChannels:
-                    print(str(counter)+". "+channel+" (hidden)")
+    def bro(self, command, data):
+        if command in self.dMethods:
+            if command in self.dMethodsRequiringData:
+                if not data:
+                    print("[-] Seems as if the command is missing data.")
                 else:
-                    print(str(counter)+". "+channel)
-
-        elif command.startswith("!bro mute "):
-            try:
-                channelToHide = command.split("!bro mute ")[1]
-                if channelToHide in self.channels:
-                    if channelToHide not in self.hiddenChannels:
-                        self.hiddenChannels.append(channelToHide)
-                        print("[+] Messages from "+channelToHide+" are now hidden")
-                else:
-                    print("[-] Channel not recognized")
-            except Exception as e:
-                print("Error: "+str(e))
-
-        elif command.startswith("!bro unmute "):
-            try:
-                channelToUnhide = command.split("!bro unmute ")[1]
-                if channelToUnhide in self.channels:
-                    if channelToUnhide in self.hiddenChannels:
-                        self.hiddenChannels.remove(channelToUnhide)
-                        print("[+] Messages from "+channelToHide+" are now shown")
-                else:
-                    print("[-] Channel not recognized")
-            except Exception as e:
-                print("Error: "+str(e))
-
-        elif command.startswith("!bro select "):
-            try:
-                channelToSelect = command.split("!bro select ")[1]
-                if channelToSelect in self.channels:
-                    self.selectedChannel = channelToSelect
-                else:
-                    print("[-] Channel not recognized")
-            except Exception as e:
-                print("Error: "+str(e))
-
-        elif command == ("!bro status"):
-            print("[+] Showing status")
-            print("- Selected channel: "+self.selectedChannel)
-
-        elif command.startswith("!bro list users "):
-            try:
-                channelToList = command.split("!bro list users ")[1]
-                if channelToList in self.channels:
-                    self.listNames = True
-                    self.ircCommSend("NAMES "+channelToList)
-                else:
-                    print("[-] Channel not recognized")
-            except Exception as e:
-                print("Error: "+str(e))
-
-        elif command == "!bro list users":
-            if self.selectedChannel:
-                self.listNames = True
-                self.ircCommSend("NAMES "+self.selectedChannel)
-
-        elif command.startswith("!bro join "):
-            channelToJoin = command.split("!bro join ")[1]
-            if channelToJoin not in self.channels:
-                if channelToJoin.startswith("#"):
-                    self.ircCommSend("JOIN "+channelToJoin)
-                    self.channels.append(channelToJoin)
+                    self.dMethods[command](data)
             else:
-                print("[-] Channel seems to be joined already. Be aware that BroIRC doesn't verify if a channel join succeeds. You can verify channel joins by enabling raw mode")
-
-        elif command.startswith("!bro leave "):
-            channelToLeave = command.split("!bro leave ")[1]
-            if channelToLeave in self.channels:
-                self.ircCommSend("LEAVE "+channelToLeave)
-                self.channels.remove(channelToLeave)
-            else:
-                print("[-] Can't leave a channel, that is not joined")
+                self.dMethods[command]()
         else:
             print("[-] Command not recognized")
+
+    #bro methods
+    def toggleRawmode(self):
+        if not self.rawmode:
+            self.rawmode = True
+            print("[+] Enabled Rawmode")
+        else:
+            self.rawmode = False
+            print("[+] Disabled Rawmode")
+
+    def showHelp(self):
+        print(self.help)
+
+    def clearScreen(self):
+        os.system("clear")
+
+    def listChannels(self):
+        print("[+] Listing channels")
+        for counter, channel in enumerate(self.channels):
+            print(str(counter+1)+". "+channel+" (muted)" if channel in self.channelsMuted else str(counter+1)+". "+channel)
+
+    def muteChannels(self, channels):
+        for channel in channels:
+            if channel in self.channels:
+                if channel not in self.channelsMuted:
+                    self.channelsMuted.append(channel)
+                    print("[+] Muted "+channel)
+            else:
+                print("[-] "+channel+" not a known channel")
+
+    def unmuteChannels(self, channels):
+        for channel in channels:
+            if channel in self.channels:
+                if channel in self.channelsMuted:
+                    self.channelsMuted.remove(channel)
+                    print("[+] Unmuted "+channel)
+            else:
+                print("[-] "+channel+" not a known channel")
+
+    def selectChannel(self, channel):
+        if channel in self.channels:
+            self.channelSelected = channel
+        else:
+            print("[-] "+str(channel)+" not a known channel")
+
+    def showStatus(self):
+        pass
+
+    def listUsers(self, channel):
+        if channel[0] in self.channels:
+            self.listNames = True
+            self.ircCommSend("NAMES "+channelToList)
+        else:
+            print("[-] "+channel+" not a known channel")
 
     def connect(self):
         self.client = socket.socket()
@@ -208,7 +179,7 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
                     fromUser = fromUser.lstrip(":")
                     fromChannel = data.split()[0]
                     messageContent = data.split(fromChannel+" :")[1]
-                    if fromChannel not in self.hiddenChannels:
+                    if fromChannel not in self.channelsMuted:
                         if self.promptActive:
                             print("")
                             self.promptActive = False
@@ -240,13 +211,16 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
     def getUserInput(self):
         while True:
             try:
-                message = input("["+self.nickname+"@"+self.selectedChannel.lstrip("#")+"] ")
+                message = input("["+self.nickname+"@"+self.channelSelected.lstrip("#")+"] ")
                 self.promptActive = True
-                if message.startswith("!bro"):
-                    self.bro(message)
+                if message.startswith("!bro "):
+                    message = message.split()
+                    command = message[1]
+                    del message[0:2]
+                    self.bro(command, message)
                 else:
-                    if self.selectedChannel != "":
-                        self.ircCommSend("PRIVMSG "+self.selectedChannel+" :"+message)
+                    if self.channelSelected != "":
+                        self.ircCommSend("PRIVMSG "+self.channelSelected+" :"+message)
                     else:
                         print("You must select a channel first. Use !bro select <channel>")
             except KeyboardInterrupt:
