@@ -118,10 +118,10 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
                 print("[-] "+channel+" not a known channel")
 
     def selectChannel(self, channel):
-        if channel in self.channels:
-            self.channelSelected = channel
+        if channel[0] in self.channels:
+            self.channelSelected = channel[0]
         else:
-            print("[-] "+str(channel)+" not a known channel")
+            print("[-] "+str(channel[0])+" not a known channel")
 
     def showStatus(self):
         pass
@@ -131,7 +131,7 @@ M#########M                    MMMM MMMMMMMMMMMM MMMMMMMMMMM v0.1
             self.listNames = True
             self.ircCommSend("NAMES "+channelToList)
         else:
-            print("[-] "+channel+" not a known channel")
+            print("[-] "+channel[0]+" not a known channel")
 
     def connect(self):
         self.client = socket.socket()
